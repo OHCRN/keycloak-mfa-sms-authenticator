@@ -1,30 +1,26 @@
 package dasniko.keycloak.authenticator;
 
-import dasniko.keycloak.authenticator.gateway.SmsServiceFactory;
 import jakarta.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.authentication.Authenticator;
 import org.keycloak.common.util.SecretGenerator;
+import org.keycloak.email.EmailTemplateProvider;
 import org.keycloak.models.*;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.theme.Theme;
 
+import java.util.HashMap;
 import java.util.Locale;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.Map;
 
-/**
- * @author Niko Köbler, https://www.n-k.de, @dasniko
- */
 @Slf4j
-public class SmsAuthenticator implements Authenticator {
-
+public class EmailAuthenticator implements Authenticator {
 	private static final String MOBILE_NUMBER_FIELD = "mobile_number";
 	private static final String TPL_CODE = "login-sms.ftl";
-	private static final Pattern PHONE_NUMBER_FORMAT = Pattern.compile("^\\d{10}$");
 
+	private static final String EMAIL_OTP_TEMPLATE = "email-otp.ftl";
 
 	@Override
 	public void authenticate(AuthenticationFlowContext context) {
@@ -32,11 +28,8 @@ public class SmsAuthenticator implements Authenticator {
 		KeycloakSession session = context.getSession();
 		UserModel user = context.getUser();
 
-		String mobileNumber = user.getFirstAttribute(MOBILE_NUMBER_FIELD);
-		// throws error if invalid
-		isValidPhoneNumber(mobileNumber, context);
+		String email = user.getEmail();
 
-		// move generator code to its own util, to be used by both Authenticator extensions
 		int length = Integer.parseInt(config.getConfig().get(SmsConstants.CODE_LENGTH));
 		int ttl = Integer.parseInt(config.getConfig().get(SmsConstants.CODE_TTL));
 
@@ -45,25 +38,37 @@ public class SmsAuthenticator implements Authenticator {
 		authSession.setAuthNote(SmsConstants.CODE, code);
 		authSession.setAuthNote(SmsConstants.CODE_TTL, Long.toString(System.currentTimeMillis() + (ttl * 1000L)));
 
+		RealmModel realm = context.getRealm();
+
+//		String key = KeycloakModelUtils.generateId();
+//		context.getAuthenticationSession().setAuthNote(SESSION_KEY, key);
+
+		EmailTemplateProvider emailTemplateProvider = context.getSession().getProvider(EmailTemplateProvider.class);
+		emailTemplateProvider.setRealm(realm);
+		emailTemplateProvider.setUser(user);
+
+		log.info("email provider" + emailTemplateProvider);
 		try {
 			Theme theme = session.theme().getTheme(Theme.Type.LOGIN);
 			Locale locale = session.getContext().resolveLocale(user);
-			String smsAuthText = theme.getMessages(locale).getProperty("smsAuthText");
-			String smsText = String.format(smsAuthText, code, Math.floorDiv(ttl, 60));
+			String otpAuthText = theme.getMessages(locale).getProperty("smsAuthText");
+			String otpText = String.format(otpAuthText, code, Math.floorDiv(ttl, 60));
 
-			// may need to append country code
-			SmsServiceFactory.get(config.getConfig()).send(mobileNumber, smsText);
+			Map<String, Object> msgParams = new HashMap<>();
+			msgParams.put("code", otpText);
+
+			emailTemplateProvider.send("emailOTPCode", EMAIL_OTP_TEMPLATE, msgParams);
 
 			context.challenge(context.form().setAttribute("realm", context.getRealm()).createForm(TPL_CODE));
 		} catch (Exception e) {
-			context.failureChallenge(AuthenticationFlowError.INTERNAL_ERROR,
-				context.form().setError("smsAuthSmsNotSent", e.getMessage())
-					.createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+			log.error("Exception during sending email occurred.", e);
+			context.failure(AuthenticationFlowError.INTERNAL_ERROR);
 		}
 	}
 
 	@Override
 	public void action(AuthenticationFlowContext context) {
+		// move action code to a reusable function for both sms and email codes
 		String enteredCode = context.getHttpRequest().getDecodedFormParameters().getFirst(SmsConstants.CODE);
 
 		AuthenticationSessionModel authSession = context.getAuthenticationSession();
@@ -106,32 +111,14 @@ public class SmsAuthenticator implements Authenticator {
 
 	@Override
 	public boolean configuredFor(KeycloakSession session, RealmModel realm, UserModel user) {
-		// this configuration prevents the OTP form from showing if user has no mobile_number attribute
-		// will instead use EmailAuthenticator flow
-		return user.getFirstAttribute(MOBILE_NUMBER_FIELD) != null;
+		return user.getFirstAttribute(MOBILE_NUMBER_FIELD) == null;
 	}
 
 	@Override
 	public void setRequiredActions(KeycloakSession session, RealmModel realm, UserModel user) {
-		// this will only work if you have the required action from here configured:
-		// https://github.com/dasniko/keycloak-extensions-demo/tree/main/requiredaction
-		//	this required action example enforces the user to update their mobile phone number, if not already set.
-		//	since we ask for this info on registration, or we use email which must be defined, it is not necessary
-		//	user.addRequiredAction("mobile-number-ra");
 	}
 
 	@Override
 	public void close() {
-	}
-
-	private void isValidPhoneNumber(String phoneNumber, AuthenticationFlowContext context) {
-		Matcher validPhoneNumber = PHONE_NUMBER_FORMAT.matcher(phoneNumber);
-		try {
-			boolean isValid = validPhoneNumber.find();
-		} catch (Exception e) {
-			context.failureChallenge(AuthenticationFlowError.INTERNAL_ERROR,
-				context.form().setError("smsAuthSmsNotSent", e.getMessage())
-					.createErrorPage(Response.Status.BAD_REQUEST));
-		}
 	}
 }

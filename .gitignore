@@ -4,3 +4,5 @@ config
 target
 deploy.sh
 dependency-reduced-pom.xml
+
+.DS_Store

@@ -69,7 +69,7 @@ public class SmsAuthenticator extends OTPAuthenticator {
 
 	@Override
 	public boolean configuredFor(KeycloakSession session, RealmModel realm, UserModel user) {
-		// this configuration prevents the OTP form from showing if user has no mobile_number attribute
+		// this configuration prevents the OTP form from showing if user has no MOBILE_NUMBER_FIELD attribute
 		// will instead use EmailAuthenticator flow
 		return user.getFirstAttribute(MOBILE_NUMBER_FIELD) != null;
 	}

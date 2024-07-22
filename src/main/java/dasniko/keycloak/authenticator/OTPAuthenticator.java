@@ -21,6 +21,13 @@ public abstract class OTPAuthenticator implements Authenticator {
 		return Integer.parseInt(config.getConfig().get(CODE_TTL));
 	}
 
+	/**
+	 * Validates that auth session context has required defined values
+	 * Will throw an error if code or ttl values are not defined
+	 * An error page will be displayed in the UI
+	 * @param  context  AuthenticationFlowContext
+	 * @return void
+	 */
 	protected void codeContextIsValid(AuthenticationFlowContext context) {
 		AuthenticationSessionModel authSession = context.getAuthenticationSession();
 		String code = authSession.getAuthNote(CODE);
@@ -31,6 +38,11 @@ public abstract class OTPAuthenticator implements Authenticator {
 		}
 	}
 
+	/**
+	 * Checks that the OTP code entered by a user matches the code in the auth session context
+	 * @param  context  AuthenticationFlowContext
+	 * @return boolean
+	 */
 	private boolean enteredCodeIsValid(AuthenticationFlowContext context) {
 		String enteredCode = context.getHttpRequest().getDecodedFormParameters().getFirst(CODE);
 		AuthenticationSessionModel authSession = context.getAuthenticationSession();
@@ -38,8 +50,17 @@ public abstract class OTPAuthenticator implements Authenticator {
 		return enteredCode.equals(code);
 	}
 
+	/**
+	 * Validates that the OTP code entered by a user is correct, and still valid for use in the current session.
+	 * On success, OTP flow is complete.
+	 * If either check fails, will throw an error.
+	 * An error screen will be displayed in the UI indicating the type of error.
+	 * @param  context  AuthenticationFlowContext
+	 * @param formCode String
+	 * @return void
+	 */
 	protected void validateEnteredCode(AuthenticationFlowContext context, String formCode) {
-		// TODO: can we add a maximum number of attempts before cancelling the session/throwing an error?
+		// TODO: can/should we add a maximum number of attempts before cancelling the session/throwing an error?
 		AuthenticationSessionModel authSession = context.getAuthenticationSession();
 		String ttl = authSession.getAuthNote(CODE_TTL);
 		boolean isValid = enteredCodeIsValid(context);

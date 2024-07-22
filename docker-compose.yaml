@@ -4,12 +4,11 @@ services:
         image: docker.io/bitnami/postgresql:16
         environment:
             # ALLOW_EMPTY_PASSWORD is recommended only for development.
-            - ALLOW_EMPTY_PASSWORD=yes
-            - POSTGRESQL_USERNAME=bn_keycloak
-            - POSTGRESQL_DATABASE=bitnami_keycloak
+            ALLOW_EMPTY_PASSWORD: yes
+            POSTGRESQL_USERNAME: bn_keycloak
+            POSTGRESQL_DATABASE: bitnami_keycloak
         volumes:
             - 'postgresql_data:/bitnami/postgresql'
-
     keycloak:
         build: .
         depends_on:
@@ -22,25 +21,23 @@ services:
             # remote debugging is recommended only for development
             # - DEBUG=true
             # - DEBUG_PORT=*:8787
-            - KC_DB=postgres
-            - KC_DB_URL=jdbc:postgresql://postgresql/bitnami_keycloak
-            - KC_DB_USERNAME=bn_keycloak
-            - KEYCLOAK_ADMIN=user@example.com
-            - KEYCLOAK_ADMIN_PASSWORD=bitnami
-#        volumes:
-#            - type: bind
-#              source: ./target/dasniko.keycloak-2fa-sms-authenticator.jar
-#              target: /opt/bitnami/keycloak/providers/keycloak-sms-auth.jar
-#            - type: bind
-#              source: data_import
-#              target: /opt/bitnami/keycloak/data/import
+            KC_DB: postgres
+            KC_DB_URL: "jdbc:postgresql://postgresql/bitnami_keycloak"
+            KC_DB_USERNAME: bn_keycloak
+        volumes:
+            - type: bind
+              source: ./target/dasniko.keycloak-2fa-sms-authenticator.jar
+              target: /opt/bitnami/keycloak/providers/keycloak-sms-auth.jar
+            - type: bind
+              source: ./import
+              target: /opt/bitnami/keycloak/data/import
     mailhog:
         # Fork of MailHog to allow building Multi Arch Docker images
         image: docker.io/jcalonso/mailhog:latest
-        container_name: 'mailhog'
         ports:
             - '1025:1025'
             - '8025:8025'
 volumes:
     postgresql_data:
         driver: local
+

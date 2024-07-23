@@ -29,19 +29,19 @@ Password: "bitnami"
 
 ### To test 2FA Login with SMS and Email:
 
-The imported `json` file contains all the configuration needed to test the custom 2FA extension with the Browser authentication flow, **except** password credentials for test users. **Password credentials will need to be set for each user, in the Admin UI "Users" section.**
+The imported `json` files contains all the configuration needed to test the custom 2FA extension with the Browser authentication flow, including one example user account to test each flow.
 
 The Browser flow can be tested by logging into the [`Keycloak Account Console`](http://localhost:8088/realms/2fa-test).
 
 #### To test the SMS flow:
 
-1. Login with `user_with_phone@example.com`.
+1. Login with `user_with_phone@example.com`. Password = `"pass"`.
 2. The SMS flow is configured to be in "Simulation Mode", which logs the code on the Keycloak server instead of sending an SMS message. When prompted for the SMS Code, check the Keycloak container logs for the message `***** SIMULATION MODE ***** Would send SMS to <mobilePhoneNumber> with text: Your one-time code is <one-time-code> and is valid for 5 minutes.`
 3. Enter the one-time-code to complete the login.
 
 #### To test the Email flow:
 
-1. Login with `user_with_email@example.com`.
+1. Login with `user_with_email@example.com`. Password = `"pass"`.
 2. When prompted for the Email Code, check Mailhog for an email with the subject line "One-time passcode", which contains the one-time code.
 3. Enter the code from the email to complete the login.
 

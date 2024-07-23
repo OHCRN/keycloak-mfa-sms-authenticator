@@ -7,10 +7,12 @@ services:
             ALLOW_EMPTY_PASSWORD: yes
             POSTGRESQL_USERNAME: bn_keycloak
             POSTGRESQL_DATABASE: bitnami_keycloak
+        ports:
+            - 5432:5432
         volumes:
             - 'postgresql_data:/bitnami/postgresql'
     keycloak:
-        build: .
+        image: bitnami/keycloak:24.0.5
         depends_on:
             - postgresql
         ports:
@@ -24,13 +26,14 @@ services:
             KC_DB: postgres
             KC_DB_URL: "jdbc:postgresql://postgresql/bitnami_keycloak"
             KC_DB_USERNAME: bn_keycloak
+            KEYCLOAK_EXTRA_ARGS: "--import-realm"
         volumes:
             - type: bind
               source: ./target/dasniko.keycloak-2fa-sms-authenticator.jar
               target: /opt/bitnami/keycloak/providers/keycloak-sms-auth.jar
             - type: bind
-              source: ./import
-              target: /opt/bitnami/keycloak/data/import
+              source: import
+              target: /opt/bitnami/keycloak/data/import/
     mailhog:
         # Fork of MailHog to allow building Multi Arch Docker images
         image: docker.io/jcalonso/mailhog:latest

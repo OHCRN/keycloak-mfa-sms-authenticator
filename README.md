@@ -27,11 +27,25 @@ Username: "user"
 Password: "bitnami"
 ```
 
+#### Note on the imported realm
+
+The compose file is set up to import a pre-configured realm called `2fa-test`, including test users, to expedite testing the 2FA flows. This realm contains all the configuration needed to test the custom 2FA extension with the Browser authentication flow, including one example user account to test each flow.
+
+The import data is found in the [import](./import/) folder, with separate `json` files for realm configuration ([2fa-test-realm.json](./import/2fa-test-realm.json)) and test users ([2fa-test-users-0.json](./import/2fa-test-users-0.json)). When the Keycloak container is started, these files will be mounted into the `/opt/bitnami/keycloak/data/import/` in that container:
+
+```yaml
+        volumes:
+            ...
+            - type: bind
+              source: import
+              target: /opt/bitnami/keycloak/data/import/
+```
+
+This is the directory where the bitnami Keycloak image expects to find realm import data, and with the `"--import-realm"` arg, will automatically import this realm in the running container.  Note that this differs slightly from the official Keycloak image folder structure: https://www.keycloak.org/server/importExport#_importing_a_realm_during_startup
+
 ### To test 2FA Login with SMS and Email:
 
-The imported `json` files contains all the configuration needed to test the custom 2FA extension with the Browser authentication flow, including one example user account to test each flow.
-
-The Browser flow can be tested by logging into the [`Keycloak Account Console`](http://localhost:8088/realms/2fa-test).
+The Browser flow can be tested by logging into the [`Keycloak Account Console`](http://localhost:8088/realms/2fa-test/account).
 
 #### To test the SMS flow:
 

@@ -26,7 +26,6 @@ public abstract class OTPAuthenticator implements Authenticator {
 	 * Will throw an error if code or ttl values are not defined
 	 * An error page will be displayed in the UI
 	 * @param  context  AuthenticationFlowContext
-	 * @return void
 	 */
 	protected void codeContextIsValid(AuthenticationFlowContext context) {
 		AuthenticationSessionModel authSession = context.getAuthenticationSession();
@@ -53,12 +52,10 @@ public abstract class OTPAuthenticator implements Authenticator {
 	/**
 	 * Validates that the OTP code entered by a user is correct, and still valid for use in the current session.
 	 * On success, OTP flow is complete.
-	 * If either check fails, will throw an error.
-	 * An error screen will be displayed in the UI indicating the type of error.
+	 * If either check fails, will set an error in the context form, and display an error screen in the UI indicating the type of error.
 	 * @param  context  AuthenticationFlowContext
 	 * @param formCode String
-	 * @return void
-	 */
+     */
 	protected void validateEnteredCode(AuthenticationFlowContext context, String formCode) {
 		// TODO: can/should we add a maximum number of attempts before cancelling the session/throwing an error?
 		AuthenticationSessionModel authSession = context.getAuthenticationSession();

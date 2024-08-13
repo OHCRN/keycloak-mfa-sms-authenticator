@@ -30,32 +30,43 @@ public class SmsAuthenticator extends OTPAuthenticator {
 		KeycloakSession session = context.getSession();
 		UserModel user = context.getUser();
 
+
 		String mobileNumber = user.getFirstAttribute(MOBILE_NUMBER_FIELD);
-		// throws error if invalid format
-		isValidPhoneNumber(mobileNumber, context);
-
-		int ttl = getTTL(config);
-		String code = getSecretCode(config);
-
-		AuthenticationSessionModel authSession = context.getAuthenticationSession();
-		authSession.setAuthNote(CODE, code);
-		authSession.setAuthNote(CODE_TTL, Long.toString(System.currentTimeMillis() + (ttl * 1000L)));
 
 		try {
-			Theme theme = session.theme().getTheme(Theme.Type.LOGIN);
-			Locale locale = session.getContext().resolveLocale(user);
-			String smsAuthText = theme.getMessages(locale).getProperty("authCodeText");
-			String smsText = String.format(smsAuthText, code, Math.floorDiv(ttl, 60));
+			// throws error if invalid format
+			if (mobileNumber == null || !isValidPhoneNumber(mobileNumber)) {
+				throw new Exception("Phone number is invalid");
+			}
 
-			// TODO: may need to append country code
-			SmsServiceFactory.get(config.getConfig()).send(mobileNumber, smsText);
+			int ttl = getTTL(config);
+			String code = getSecretCode(config);
 
-			context.challenge(context.form().setAttribute("realm", context.getRealm()).createForm(TPL_CODE));
+			AuthenticationSessionModel authSession = context.getAuthenticationSession();
+			authSession.setAuthNote(CODE, code);
+			authSession.setAuthNote(CODE_TTL, Long.toString(System.currentTimeMillis() + (ttl * 1000L)));
+
+			try {
+				Theme theme = session.theme().getTheme(Theme.Type.LOGIN);
+				Locale locale = session.getContext().resolveLocale(user);
+				String smsAuthText = theme.getMessages(locale).getProperty("authCodeText");
+				String smsText = String.format(smsAuthText, code, Math.floorDiv(ttl, 60));
+
+				// TODO: may need to append country code
+				SmsServiceFactory.get(config.getConfig()).send(mobileNumber, smsText);
+
+				context.challenge(context.form().setAttribute("realm", context.getRealm()).createForm(TPL_CODE));
+			} catch (Exception e) {
+				context.failureChallenge(AuthenticationFlowError.INTERNAL_ERROR,
+					context.form().setError("smsAuthSmsNotSent", e.getMessage())
+						.createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+			}
 		} catch (Exception e) {
-			context.failureChallenge(AuthenticationFlowError.INTERNAL_ERROR,
+			context.failureChallenge(AuthenticationFlowError.INVALID_USER,
 				context.form().setError("smsAuthSmsNotSent", e.getMessage())
-					.createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+					.createErrorPage(Response.Status.BAD_REQUEST));
 		}
+
 	}
 
 	@Override
@@ -69,19 +80,15 @@ public class SmsAuthenticator extends OTPAuthenticator {
 
 	@Override
 	public boolean configuredFor(KeycloakSession session, RealmModel realm, UserModel user) {
+		// return true ensures this flow will always run if SMS OTP flow is enabled as a step in the Browser Authentication flow
+		return true;
 		// this configuration prevents the OTP form from showing if user has no MOBILE_NUMBER_FIELD attribute
 		// will instead use EmailAuthenticator flow
-		return user.getFirstAttribute(MOBILE_NUMBER_FIELD) != null;
+		// return user.getFirstAttribute(MOBILE_NUMBER_FIELD) != null;
 	}
 
-	private void isValidPhoneNumber(String phoneNumber, AuthenticationFlowContext context) {
-		Matcher validPhoneNumber = PHONE_NUMBER_FORMAT.matcher(phoneNumber);
-		try {
-			boolean isValid = validPhoneNumber.find();
-		} catch (Exception e) {
-			context.failureChallenge(AuthenticationFlowError.INTERNAL_ERROR,
-				context.form().setError("smsAuthSmsNotSent", e.getMessage())
-					.createErrorPage(Response.Status.BAD_REQUEST));
-		}
+	private boolean isValidPhoneNumber(String phoneNumber) {
+			Matcher validPhoneNumber =  PHONE_NUMBER_FORMAT.matcher(phoneNumber);
+			return validPhoneNumber.find();
 	}
 }

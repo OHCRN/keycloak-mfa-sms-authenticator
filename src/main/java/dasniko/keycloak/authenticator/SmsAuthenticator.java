@@ -30,13 +30,16 @@ public class SmsAuthenticator extends OTPAuthenticator {
 		KeycloakSession session = context.getSession();
 		UserModel user = context.getUser();
 
-
 		String mobileNumber = user.getFirstAttribute(MOBILE_NUMBER_FIELD);
 
 		try {
+			Theme theme = session.theme().getTheme(Theme.Type.LOGIN);
+			Locale locale = session.getContext().resolveLocale(user);
+
 			// throws error if invalid format
 			if (mobileNumber == null || !isValidPhoneNumber(mobileNumber)) {
-				throw new Exception("Phone number is invalid");
+				String errMessage = theme.getMessages(locale).getProperty("invalidMobileNumber");
+				throw new InvalidMobileNumberException(errMessage);
 			}
 
 			int ttl = getTTL(config);
@@ -46,25 +49,23 @@ public class SmsAuthenticator extends OTPAuthenticator {
 			authSession.setAuthNote(CODE, code);
 			authSession.setAuthNote(CODE_TTL, Long.toString(System.currentTimeMillis() + (ttl * 1000L)));
 
-			try {
-				Theme theme = session.theme().getTheme(Theme.Type.LOGIN);
-				Locale locale = session.getContext().resolveLocale(user);
-				String smsAuthText = theme.getMessages(locale).getProperty("authCodeText");
-				String smsText = String.format(smsAuthText, code, Math.floorDiv(ttl, 60));
+			String smsAuthText = theme.getMessages(locale).getProperty("authCodeText");
+			String smsText = String.format(smsAuthText, code, Math.floorDiv(ttl, 60));
 
-				// TODO: may need to append country code
-				SmsServiceFactory.get(config.getConfig()).send(mobileNumber, smsText);
+			// TODO: may need to append country code
+			SmsServiceFactory.get(config.getConfig()).send(mobileNumber, smsText);
 
-				context.challenge(context.form().setAttribute("realm", context.getRealm()).createForm(TPL_CODE));
-			} catch (Exception e) {
+			context.challenge(context.form().setAttribute("realm", context.getRealm()).createForm(TPL_CODE));
+		} catch (Exception e) {
+			if (e instanceof InvalidMobileNumberException) {
+				context.failureChallenge(AuthenticationFlowError.INVALID_USER,
+					context.form().setError("smsAuthSmsNotSent", e.getMessage())
+						.createErrorPage(Response.Status.BAD_REQUEST));
+			} else {
 				context.failureChallenge(AuthenticationFlowError.INTERNAL_ERROR,
 					context.form().setError("smsAuthSmsNotSent", e.getMessage())
 						.createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
 			}
-		} catch (Exception e) {
-			context.failureChallenge(AuthenticationFlowError.INVALID_USER,
-				context.form().setError("smsAuthSmsNotSent", e.getMessage())
-					.createErrorPage(Response.Status.BAD_REQUEST));
 		}
 
 	}

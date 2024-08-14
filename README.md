@@ -47,6 +47,9 @@ This is the directory where the bitnami Keycloak image expects to find realm imp
 
 The Browser flow can be tested by logging into the [`Keycloak Account Console`](http://localhost:8088/realms/2fa-test/account).
 
+"Simulation Mode", which will log the OTP code to the Keycloak server output, is only configured for the SMS Authenticator. This is to bypass using a real SMS provider while still in the development/testing stage.
+The Email Authenticator does not use this mode, as testing can be done with Mailhog.
+
 #### To test the SMS flow:
 
 1. Login with `user_with_phone@example.com`. Password = `"pass"`.

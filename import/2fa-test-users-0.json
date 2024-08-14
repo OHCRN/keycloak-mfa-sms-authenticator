@@ -1,0 +1,84 @@
+{
+  "realm" : "2fa-test",
+  "users" : [ {
+    "id" : "8c25b1cd-717e-4401-84c0-34d08b250d7d",
+    "username" : "service-account-ohcrn-dev-local",
+    "emailVerified" : false,
+    "createdTimestamp" : 1721693298401,
+    "enabled" : true,
+    "totp" : false,
+    "serviceAccountClientId" : "ohcrn-dev-local",
+    "credentials" : [ ],
+    "disableableCredentialTypes" : [ ],
+    "requiredActions" : [ ],
+    "realmRoles" : [ "default-roles-2fa-test" ],
+    "notBefore" : 0,
+    "groups" : [ ]
+  }, {
+    "id" : "aa5befc0-b339-41d1-bed6-accd641309b5",
+    "username" : "service-account-user-registration",
+    "emailVerified" : false,
+    "createdTimestamp" : 1721693298419,
+    "enabled" : true,
+    "totp" : false,
+    "serviceAccountClientId" : "user-registration",
+    "credentials" : [ ],
+    "disableableCredentialTypes" : [ ],
+    "requiredActions" : [ ],
+    "realmRoles" : [ "default-roles-2fa-test" ],
+    "clientRoles" : {
+      "realm-management" : [ "manage-users" ]
+    },
+    "notBefore" : 0,
+    "groups" : [ ]
+  }, {
+    "id" : "cfaffb95-e6fe-4269-87b7-b0dcbbf9636f",
+    "username" : "user_with_email@example.com",
+    "firstName" : "User",
+    "lastName" : "WithEmail",
+    "email" : "user_with_email@example.com",
+    "emailVerified" : true,
+    "createdTimestamp" : 1721657838695,
+    "enabled" : true,
+    "totp" : false,
+    "credentials" : [ {
+      "id" : "1fee6993-25f9-4d67-b104-ccd7b44b7ac9",
+      "type" : "password",
+      "userLabel" : "My password",
+      "createdDate" : 1721698465139,
+      "secretData" : "{\"value\":\"yRJ0LoSfOjGBsn9zgX+37Pa4mm3+wf98ll6v18jWvKFEZyOACe0w6DXOY3NT0M/JTQmd/STiy3hIKJ7rAvu8kw==\",\"salt\":\"A/U7aeBitdIycCip8gyCXw==\",\"additionalParameters\":{}}",
+      "credentialData" : "{\"hashIterations\":210000,\"algorithm\":\"pbkdf2-sha512\",\"additionalParameters\":{}}"
+    } ],
+    "disableableCredentialTypes" : [ ],
+    "requiredActions" : [ ],
+    "realmRoles" : [ "default-roles-2fa-test" ],
+    "notBefore" : 0,
+    "groups" : [ ]
+  }, {
+    "id" : "e8506621-8998-4e0d-b839-c0035ccde6ed",
+    "username" : "user_with_phone@example.com",
+    "firstName" : "User",
+    "lastName" : "WithPhone",
+    "email" : "user_with_phone@example.com",
+    "emailVerified" : true,
+    "attributes" : {
+      "mobilePhoneNumber" : [ "0123456789" ]
+    },
+    "createdTimestamp" : 1721657865994,
+    "enabled" : true,
+    "totp" : false,
+    "credentials" : [ {
+      "id" : "1dabba36-d306-47a2-a7c9-a213160a0718",
+      "type" : "password",
+      "userLabel" : "My password",
+      "createdDate" : 1721698505433,
+      "secretData" : "{\"value\":\"qBQvXJsCIysCorW9Jxgo7YrgiskVTBVOKzTYusmK4yqwBKPApRLX+slkCXwXTYLG7vnPAOsfNmQdeb8VN/APGQ==\",\"salt\":\"lECUQt/mSA46rnby7G4ccA==\",\"additionalParameters\":{}}",
+      "credentialData" : "{\"hashIterations\":210000,\"algorithm\":\"pbkdf2-sha512\",\"additionalParameters\":{}}"
+    } ],
+    "disableableCredentialTypes" : [ ],
+    "requiredActions" : [ ],
+    "realmRoles" : [ "default-roles-2fa-test" ],
+    "notBefore" : 0,
+    "groups" : [ ]
+  } ]
+}

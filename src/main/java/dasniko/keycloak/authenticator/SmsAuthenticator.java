@@ -52,7 +52,6 @@ public class SmsAuthenticator extends OTPAuthenticator {
 			String smsAuthText = theme.getMessages(locale).getProperty("authCodeText");
 			String smsText = String.format(smsAuthText, code, Math.floorDiv(ttl, 60));
 
-			// TODO: may need to append country code
 			SmsServiceFactory.get(config.getConfig()).send(mobileNumber, smsText);
 
 			context.challenge(context.form().setAttribute("realm", context.getRealm()).createForm(TPL_CODE));
@@ -62,9 +61,10 @@ public class SmsAuthenticator extends OTPAuthenticator {
 					context.form().setError("smsAuthSmsNotSent", e.getMessage())
 						.createErrorPage(Response.Status.BAD_REQUEST));
 			} else {
-				context.failureChallenge(AuthenticationFlowError.INTERNAL_ERROR,
-					context.form().setError("smsAuthSmsNotSent", e.getMessage())
-						.createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+				// display error screen with general error message
+					context.failureChallenge(AuthenticationFlowError.INTERNAL_ERROR,
+						context.form().setError("smsAuthSmsNotSent", "There was an error attempting to send SMS message.")
+							.createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
 			}
 		}
 

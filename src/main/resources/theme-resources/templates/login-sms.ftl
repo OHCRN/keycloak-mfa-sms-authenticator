@@ -1,6 +1,6 @@
 <#import "template.ftl" as layout>
-<@layout.registrationLayout displayInfo=true displayRequiredFields=false; section>
-	<#if section = "info">
+<@layout.registrationLayout displayInfo=false displayRequiredFields=false; section>
+	<#if section = "sms-info">
 		<h2 id="sms-title">${msg("smsAuthTitle")}</h2>
 		<div class="sms-instructions">
 			${msg("smsAuthInstruction1", mobileNumber)?no_esc}

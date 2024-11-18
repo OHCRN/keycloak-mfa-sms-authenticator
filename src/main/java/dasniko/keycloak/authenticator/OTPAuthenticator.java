@@ -17,6 +17,12 @@ public abstract class OTPAuthenticator implements Authenticator {
         return SecretGenerator.getInstance().randomString(length, SecretGenerator.DIGITS);
 	}
 
+	/**
+	 * Retrieves the OTP time-to-live value from the configuration in the Keycloak Admin UI
+	 * Value is in seconds
+	 * @param config AuthenticatorConfigModel
+	 * @return Integer
+	 */
 	protected Integer getTTL(AuthenticatorConfigModel config) {
 		return Integer.parseInt(config.getConfig().get(CODE_TTL));
 	}

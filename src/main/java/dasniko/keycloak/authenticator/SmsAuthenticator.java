@@ -5,7 +5,10 @@ import jakarta.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
-import org.keycloak.models.*;
+import org.keycloak.models.AuthenticatorConfigModel;
+import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.RealmModel;
+import org.keycloak.models.UserModel;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.theme.Theme;
 
@@ -22,7 +25,8 @@ import static dasniko.keycloak.authenticator.OTPConstants.*;
 public class SmsAuthenticator extends OTPAuthenticator {
 
 	protected static final String TPL_CODE = "login-sms.ftl";
-	private static final Pattern PHONE_NUMBER_FORMAT = Pattern.compile("^\\d{10}$");
+	private static final Pattern REGEX_PHONE_NUMBER = Pattern.compile("^\\d{10}$");
+	private static final String PHONE_NUMBER_FORMAT = "(\\d{3})(\\d{3})(\\d+)";
 
 	@Override
 	public void authenticate(AuthenticationFlowContext context) {
@@ -37,33 +41,35 @@ public class SmsAuthenticator extends OTPAuthenticator {
 			Locale locale = session.getContext().resolveLocale(user);
 
 			// throws error if invalid format
-			if (mobileNumber == null || !isValidPhoneNumber(mobileNumber)) {
+			if (!isValidPhoneNumber(mobileNumber)) {
 				String errMessage = theme.getMessages(locale).getProperty("invalidMobileNumber");
 				throw new InvalidMobileNumberException(errMessage);
 			}
 
-			int ttl = getTTL(config);
+			int ttlInSeconds = getTTL(config);
 			String code = getSecretCode(config);
 
 			AuthenticationSessionModel authSession = context.getAuthenticationSession();
 			authSession.setAuthNote(CODE, code);
-			authSession.setAuthNote(CODE_TTL, Long.toString(System.currentTimeMillis() + (ttl * 1000L)));
+			authSession.setAuthNote(CODE_TTL, Long.toString(System.currentTimeMillis() + (ttlInSeconds * 1000L)));
 
 			String smsAuthText = theme.getMessages(locale).getProperty("authCodeText");
-			String smsText = String.format(smsAuthText, code, Math.floorDiv(ttl, 60));
+			Integer formattedTtl = Math.floorDiv(ttlInSeconds, 60);
+			String smsText = String.format(smsAuthText, code);
+			String formattedMobileNumber = mobileNumber.replaceFirst(PHONE_NUMBER_FORMAT, "$1-$2-$3");
 
-			// TODO: may need to append country code
 			SmsServiceFactory.get(config.getConfig()).send(mobileNumber, smsText);
 
-			context.challenge(context.form().setAttribute("realm", context.getRealm()).createForm(TPL_CODE));
+			context.challenge(context.form().setAttribute("realm", context.getRealm()).setAttribute("mobileNumber", formattedMobileNumber).setAttribute("codeTtl", formattedTtl).createForm(TPL_CODE));
 		} catch (Exception e) {
 			if (e instanceof InvalidMobileNumberException) {
 				context.failureChallenge(AuthenticationFlowError.INVALID_USER,
 					context.form().setError("smsAuthSmsNotSent", e.getMessage())
 						.createErrorPage(Response.Status.BAD_REQUEST));
 			} else {
+				// display error screen with general error message
 				context.failureChallenge(AuthenticationFlowError.INTERNAL_ERROR,
-					context.form().setError("smsAuthSmsNotSent", e.getMessage())
+					context.form().setError("smsAuthSmsNotSent", "There was an error attempting to send SMS message.")
 						.createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
 			}
 		}
@@ -89,7 +95,11 @@ public class SmsAuthenticator extends OTPAuthenticator {
 	}
 
 	private boolean isValidPhoneNumber(String phoneNumber) {
-			Matcher validPhoneNumber =  PHONE_NUMBER_FORMAT.matcher(phoneNumber);
-			return validPhoneNumber.find();
+		if (phoneNumber == null) {
+			return false;
+		}
+		Matcher validPhoneNumber = REGEX_PHONE_NUMBER.matcher(phoneNumber);
+		return validPhoneNumber.matches();
 	}
+
 }

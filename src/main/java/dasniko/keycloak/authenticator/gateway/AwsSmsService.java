@@ -3,7 +3,9 @@ package dasniko.keycloak.authenticator.gateway;
 import lombok.extern.slf4j.Slf4j;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.services.sns.SnsClient;
-import software.amazon.awssdk.services.sns.model.*;
+import software.amazon.awssdk.services.sns.model.MessageAttributeValue;
+import software.amazon.awssdk.services.sns.model.PublishRequest;
+import software.amazon.awssdk.services.sns.model.PublishResponse;
 
 import java.util.HashMap;
 import java.util.Map;

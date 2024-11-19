@@ -45,7 +45,7 @@ public class SmsAuthenticator extends OTPAuthenticator {
 				String errMessage = theme.getMessages(locale).getProperty("invalidMobileNumber");
 				throw new InvalidMobileNumberException(errMessage);
 			}
-			// OTP code in seconds
+
 			int ttlInSeconds = getTTL(config);
 			String code = getSecretCode(config);
 

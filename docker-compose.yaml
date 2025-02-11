@@ -1,4 +1,3 @@
-version: '2.3'
 services:
     postgresql:
         image: docker.io/bitnami/postgresql:16
@@ -8,11 +7,12 @@ services:
             POSTGRESQL_USERNAME: bn_keycloak
             POSTGRESQL_DATABASE: bitnami_keycloak
         ports:
-            - 5432:5432
+            - '5430:5432'
         volumes:
             - 'postgresql_data:/bitnami/postgresql'
     keycloak:
-        image: bitnami/keycloak:24.0.5
+        image: bitnami/keycloak:26.1.0
+        container_name: keycloak_test
         depends_on:
             - postgresql
         ports:

@@ -11,8 +11,6 @@
 			<div class="${properties.kcFormGroupClass!}">
 				<div class="${properties.kcLabelWrapperClass!}">
 					<label for="code" class="${properties.kcLabelClass!}">${msg("smsAuthLabel")}</label>
-				</div>
-				<div class="${properties.kcInputWrapperClass!}">
 					<input type="text" id="code" name="code" class="${properties.kcInputClass!}" autofocus/>
 				</div>
 			</div>

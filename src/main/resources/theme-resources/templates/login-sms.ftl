@@ -21,8 +21,16 @@
 						type="submit" value="${msg("doVerifyCode")}"/>
 				</div>
 			</div>
+
+
 		</form>
-	<#elseif section = "resend">
-		<div id="retry-wrapper" class="${properties.kcFormButtonsClass!}"><a class="retry-code" href="">${msg("resendCode")}</a></div>
+		<form id="kc-sms-code-resend-form" class="${properties.kcFormClass!}" action="${url.loginAction}" method="post">
+			<div id="retry-wrapper" class="${properties.kcFormButtonsClass!}">
+				<input type="hidden" id="resend" name="resend" class="${properties.kcInputClass!}" value="resendCode"/>
+				<input
+					class="${properties.kcButtonClass!} ${properties.kcButtonPrimaryClass!} ${properties.kcButtonBlockClass!} ${properties.kcButtonLargeClass!}"
+					type="submit" value="${msg("resendOTPCode")}"/>
+			</div>
+		</form>
 	</#if>
 </@layout.registrationLayout>

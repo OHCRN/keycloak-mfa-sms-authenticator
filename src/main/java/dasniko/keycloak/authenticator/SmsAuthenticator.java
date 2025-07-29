@@ -279,14 +279,12 @@ public class SmsAuthenticator implements Authenticator {
 	 */
 	public boolean userIsEnabled(AuthenticationFlowContext context, UserModel user) {
 		if (isDisabledByBruteForce(context, user)) {
-			log.info("user is brute force locked out block");
 			context.failureChallenge(AuthenticationFlowError.USER_TEMPORARILY_DISABLED,
 				context.form().setError("accountTemporarilyDisabledMessage", "Your account has been temporarily disabled")
 					.createErrorPage(Response.Status.UNAUTHORIZED));
 			return false;
 		}
 		if (!user.isEnabled()) {
-			log.info("user is disabled block");
 			context.getEvent().user(user);
 			context.getEvent().error(Errors.USER_DISABLED);
 
@@ -300,7 +298,6 @@ public class SmsAuthenticator implements Authenticator {
 
 	protected boolean isDisabledByBruteForce(AuthenticationFlowContext context, UserModel user) {
 		String bruteForceError = getDisabledByBruteForceEventError(context, user);
-		log.info("brute force error: {}", bruteForceError);
 		if (!isNull(bruteForceError)) {
 			context.getEvent().user(user);
 			context.getEvent().error(bruteForceError);

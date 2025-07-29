@@ -10,5 +10,6 @@ public class OTPConstants {
 	public String SIMULATION_MODE = "simulation";
 	public String MOBILE_NUMBER_FIELD = "mobilePhoneNumber";
 	public String ORIGINATION_NUMBER = "originationNumber";
+	public String RESEND_CODE_MAX_ATTEMPTS = "resendCodeMaxAttempts";
 
 }

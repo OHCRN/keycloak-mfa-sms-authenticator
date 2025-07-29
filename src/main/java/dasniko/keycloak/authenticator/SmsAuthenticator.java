@@ -14,6 +14,7 @@ import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.theme.Theme;
 
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -28,7 +29,7 @@ import static org.keycloak.authentication.authenticators.util.AuthenticatorUtils
 @Slf4j
 public class SmsAuthenticator implements Authenticator {
 
-	protected static final String TPL_CODE = "login-sms.ftl";
+	private static final String TPL_CODE = "login-sms.ftl";
 	private static final Pattern REGEX_PHONE_NUMBER = Pattern.compile("^\\d{10}$");
 	private static final String PHONE_NUMBER_FORMAT = "(\\d{3})(\\d{3})(\\d+)";
 	private static final String FIRST_ATTEMPT = "firstAttempt";
@@ -43,6 +44,7 @@ public class SmsAuthenticator implements Authenticator {
 		KeycloakSession session = context.getSession();
 		UserModel user = context.getUser();
 
+		int maxResendAttempts = Integer.parseInt(config.getConfig().get(RESEND_CODE_MAX_ATTEMPTS));
 		String mobileNumber = user.getFirstAttribute(MOBILE_NUMBER_FIELD);
 		AuthenticationSessionModel authSession = context.getAuthenticationSession();
 		String sessionId = session.toString();
@@ -56,7 +58,7 @@ public class SmsAuthenticator implements Authenticator {
 		String firstAttempt = authSession.getAuthNote(FIRST_ATTEMPT);
 		String resendAttempt = authSession.getAuthNote(RESEND_ATTEMPT);
 
-		if (!isNull(resendAttempt) && Integer.parseInt(resendAttempt) >= 5) {
+		if (!isNull(resendAttempt) && Integer.parseInt(resendAttempt) >= maxResendAttempts) {
 			log.debug("Max resend OTP code attempts reached, disabling user.");
 			// disable the user to prevent further resend attempts + block authentication
 			user.setEnabled(false);

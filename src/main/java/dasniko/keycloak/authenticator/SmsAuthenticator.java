@@ -53,8 +53,8 @@ public class SmsAuthenticator implements Authenticator {
 			log.debug("Setting first attempt to authenticate");
 			// set this note to the session that exists on first screen load
 			authSession.setAuthNote(FIRST_ATTEMPT, session.toString());
-
 		}
+
 		String firstAttempt = authSession.getAuthNote(FIRST_ATTEMPT);
 		String resendAttempt = authSession.getAuthNote(RESEND_ATTEMPT);
 
@@ -87,13 +87,13 @@ public class SmsAuthenticator implements Authenticator {
 			authSession.setAuthNote(FORMATTED_TTL, formattedTtl.toString());
 			// "resend" will be true if the authenticate function was triggered by clicking the resend button
 			String resendNote = authSession.getAuthNote(RESEND_PARAM);
-			boolean condition1 = Objects.equals(resendNote, "true");
+			boolean shouldResend = Objects.equals(resendNote, "true");
 
 			// if the page is reloaded, the sessionId changes, so we know it is not the first attempt
 			// this prevents triggering a new OTP to be sent if the page is reloaded.
-			boolean condition2 = Objects.equals(firstAttempt, sessionId);
+			boolean isFirstAttempt = Objects.equals(firstAttempt, sessionId);
 
-			if (condition1 || condition2) {
+			if (shouldResend || isFirstAttempt) {
 				// reset the "resend" note to prevent resending the OTP code if the page is reloaded
 				authSession.setAuthNote(RESEND_PARAM, null);
 				String code = getSecretCode(config);
@@ -138,6 +138,10 @@ public class SmsAuthenticator implements Authenticator {
 				validateEnteredCode(context);
 			}
 		} else {
+			// this code is likely not reachable with the current implementation; any errors due to the
+			// user being disabled should be triggered within the userIsEnabled function.
+			// However, leaving this is in place as an extra error handler in case there is a
+			// scenario that was not encountered during testing.
 			context.failureChallenge(AuthenticationFlowError.USER_TEMPORARILY_DISABLED,
 				context.form().setError("accountTemporarilyDisabledMessage")
 					.createErrorPage(Response.Status.UNAUTHORIZED));

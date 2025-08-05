@@ -29,7 +29,7 @@
 				<input type="hidden" id="resend" name="resend" class="${properties.kcInputClass!}" value="resendCode"/>
 				<input
 					class="${properties.kcButtonClass!} ${properties.kcButtonPrimaryClass!} ${properties.kcButtonBlockClass!} ${properties.kcButtonLargeClass!}"
-					type="submit" value="${msg("resendOTPCode")}"/>
+					type="submit" value="${msg("resendAuthCode")}"/>
 			</div>
 		</form>
 	</#if>

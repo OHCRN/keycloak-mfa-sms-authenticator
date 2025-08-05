@@ -13,8 +13,9 @@ import org.keycloak.models.*;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.theme.Theme;
 
+import java.sql.Timestamp;
+import java.util.Date;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -32,36 +33,40 @@ public class SmsAuthenticator implements Authenticator {
 	private static final String TPL_CODE = "login-sms.ftl";
 	private static final Pattern REGEX_PHONE_NUMBER = Pattern.compile("^\\d{10}$");
 	private static final String PHONE_NUMBER_FORMAT = "(\\d{3})(\\d{3})(\\d+)";
-	private static final String FIRST_ATTEMPT = "firstAttempt";
-	private static final String RESEND_ATTEMPT = "resendAttempt";
+	private static final String FIRST_AUTHENTICATION_ATTEMPT = "firstAuthenticationAttempt";
 	private static final String RESEND_PARAM = "resend";
 	private static final String FORMATTED_MOBILE_NUMBER = "formattedMobileNumber";
 	private static final String FORMATTED_TTL = "formattedTTL";
+	private static final long TO_MILLISECONDS = 1000L;
 
 	@Override
 	public void authenticate(AuthenticationFlowContext context) {
 		AuthenticatorConfigModel config = context.getAuthenticatorConfig();
 		KeycloakSession session = context.getSession();
 		UserModel user = context.getUser();
+		// check if resend attempt attributes should be reset
+		handleResendAttemptStatus(user, config);
+
+		String lastResendAttempt = user.getFirstAttribute(RESEND_ATTEMPT_LAST_TIMESTAMP);
 
 		int maxResendAttempts = Integer.parseInt(config.getConfig().get(RESEND_CODE_MAX_ATTEMPTS));
 		String mobileNumber = user.getFirstAttribute(MOBILE_NUMBER_FIELD);
 		AuthenticationSessionModel authSession = context.getAuthenticationSession();
 		String sessionId = session.toString();
 
-		if (isNull(authSession.getAuthNote(FIRST_ATTEMPT))) {
-			log.debug("Setting first attempt to authenticate");
+		if (isNull(authSession.getAuthNote(FIRST_AUTHENTICATION_ATTEMPT))) {
 			// set this note to the session that exists on first screen load
-			authSession.setAuthNote(FIRST_ATTEMPT, session.toString());
+			authSession.setAuthNote(FIRST_AUTHENTICATION_ATTEMPT, session.toString());
 		}
+		// retrieve the firstAttempt value after the initial null check
+		String firstAttempt = authSession.getAuthNote(FIRST_AUTHENTICATION_ATTEMPT);
 
-		String firstAttempt = authSession.getAuthNote(FIRST_ATTEMPT);
-		String resendAttempt = authSession.getAuthNote(RESEND_ATTEMPT);
-
+		String resendAttempt = user.getFirstAttribute(RESEND_ATTEMPT_COUNT);
 		if (!isNull(resendAttempt) && Integer.parseInt(resendAttempt) >= maxResendAttempts) {
-			log.debug("Max resend OTP code attempts reached, disabling user.");
 			// disable the user to prevent further resend attempts + block authentication
 			user.setEnabled(false);
+			// invalidate existing code
+			authSession.removeAuthNote(CODE);
 			// display an error screen
 			context.failureChallenge(AuthenticationFlowError.USER_DISABLED,
 				context.form().setError("smsResendMaxAttempts")
@@ -99,7 +104,7 @@ public class SmsAuthenticator implements Authenticator {
 				String code = getSecretCode(config);
 
 				authSession.setAuthNote(CODE, code);
-				authSession.setAuthNote(CODE_TTL, Long.toString(System.currentTimeMillis() + (ttlInSeconds * 1000L)));
+				authSession.setAuthNote(CODE_TTL, Long.toString(System.currentTimeMillis() + (ttlInSeconds * TO_MILLISECONDS)));
 
 				String smsAuthText = theme.getMessages(locale).getProperty("authCodeText");
 				String smsText = String.format(smsAuthText, code);
@@ -142,8 +147,8 @@ public class SmsAuthenticator implements Authenticator {
 			// user being disabled should be triggered within the userIsEnabled function.
 			// However, leaving this is in place as an extra error handler in case there is a
 			// scenario that was not encountered during testing.
-			context.failureChallenge(AuthenticationFlowError.USER_TEMPORARILY_DISABLED,
-				context.form().setError("accountTemporarilyDisabledMessage")
+			context.failureChallenge(AuthenticationFlowError.USER_DISABLED,
+				context.form().setError("accountPermanentlyDisabledMessage")
 					.createErrorPage(Response.Status.UNAUTHORIZED));
 		}
 	}
@@ -182,7 +187,7 @@ public class SmsAuthenticator implements Authenticator {
 	}
 
 	/**
-	 * Checks that the OTP code entered by a user matches the code in the auth session context
+	 * Checks that the OTP code entered by a user matches the code in the auth session context.
 	 *
 	 * @param context AuthenticationFlowContext
 	 * @return boolean
@@ -197,7 +202,9 @@ public class SmsAuthenticator implements Authenticator {
 	/**
 	 * Validates that the OTP code entered by a user is correct, and still valid for use in the current session.
 	 * On success, OTP flow is complete.
+	 * <p>
 	 * If either check fails, will set an error in the context form, and display an error screen in the UI indicating the type of error.
+	 * </p>
 	 *
 	 * @param context AuthenticationFlowContext
 	 */
@@ -206,6 +213,7 @@ public class SmsAuthenticator implements Authenticator {
 		String ttl = authSession.getAuthNote(CODE_TTL);
 		String mobileNumber = authSession.getAuthNote(FORMATTED_MOBILE_NUMBER);
 		String formattedTtl = authSession.getAuthNote(FORMATTED_TTL);
+		UserModel user = context.getUser();
 
 		boolean isValid = enteredCodeIsValid(context);
 		if (isValid) {
@@ -216,6 +224,8 @@ public class SmsAuthenticator implements Authenticator {
 					context.form().setError("authCodeExpired").createErrorPage(Response.Status.BAD_REQUEST));
 			} else {
 				// valid
+				// reset user attributes for tracking resending when a valid code entry is submitted
+				resetResendAttemptAttributes(user);
 				context.success();
 			}
 		} else {
@@ -232,10 +242,69 @@ public class SmsAuthenticator implements Authenticator {
 		}
 	}
 
-	private void incrementedResendAttempt(AuthenticationSessionModel authSession) {
-		String resendAttempt = authSession.getAuthNote(RESEND_ATTEMPT);
+	/**
+	 * If the user is enabled, removes the custom attributes associated with the resend code functionality.
+	 * This gives the user a fresh set of resend attempts for their next MFA attempt.
+	 * <ul>
+	 *     <li>removes RESEND_ATTEMPT_LAST_TIMESTAMP</li>
+	 *     <li>removes RESEND_ATTEMPT_COUNT</li>
+	 * </ul>
+	 *
+	 * @param user UserModel - user from the current Auth context.
+	 */
+	private void resetResendAttemptAttributes(UserModel user) {
+		if (user.isEnabled()) {
+			log.debug("Resetting resend attempt attributes");
+			user.removeAttribute(RESEND_ATTEMPT_LAST_TIMESTAMP);
+			user.removeAttribute(RESEND_ATTEMPT_COUNT);
+		}
+	}
+
+	/**
+	 * Retrieves the RESEND_CODE_RESET_PERIOD value from the SMS Authenticator configuration,
+	 * and returns the value as an int, converted to milliseconds.
+	 */
+	private int getResendAttemptPeriod(AuthenticatorConfigModel config) {
+		String resetPeriod = config.getConfig().get(RESEND_CODE_RESET_PERIOD);
+		return Math.toIntExact(Integer.parseInt(resetPeriod) * TO_MILLISECONDS);
+	}
+
+	/**
+	 * Calculates if the configured resetPeriod has been passed, and the current user's resend attempt
+	 * attributes should be removed. These attributes are only removed if the user is enabled.
+	 *
+	 * @param user   UserModel - user from the current Auth context.
+	 * @param config AuthenticatorConfigModel
+	 */
+	private void handleResendAttemptStatus(UserModel user, AuthenticatorConfigModel config) {
+		String timestampAttr = user.getFirstAttribute(RESEND_ATTEMPT_LAST_TIMESTAMP);
+		if (!isNull(timestampAttr)) {
+			Timestamp lastResendTimestamp = Timestamp.valueOf(timestampAttr);
+			long currentTime = System.currentTimeMillis();
+			long diff = currentTime - lastResendTimestamp.getTime();
+			int resetPeriod = getResendAttemptPeriod(config);
+			if (diff > resetPeriod) {
+				resetResendAttemptAttributes(user);
+			}
+		}
+	}
+
+	/**
+	 * Sets the resend attempt attributes with new values:
+	 * <ul>
+	 *     <li>RESEND_ATTEMPT_LAST_TIMESTAMP is set to the current timestamp</li>
+	 *     <li>RESEND_ATTEMPT_COUNT is incremented by 1</li>
+	 * </ul>
+	 *
+	 * @param user UserModel - user from the current Auth context.
+	 */
+	private void incrementedResendAttempt(UserModel user) {
+		String resendAttempt = user.getFirstAttribute(RESEND_ATTEMPT_COUNT);
 		int incremented = isNull(resendAttempt) ? 1 : Integer.parseInt(resendAttempt) + 1;
-		authSession.setAuthNote(RESEND_ATTEMPT, Integer.toString(incremented));
+		Timestamp currentTimestamp = new Timestamp(new Date().getTime());
+		// setting as a Timestamp for readability in the Admin UI
+		user.setSingleAttribute(RESEND_ATTEMPT_LAST_TIMESTAMP, currentTimestamp.toString());
+		user.setSingleAttribute(RESEND_ATTEMPT_COUNT, Integer.toString(incremented));
 	}
 
 	/**
@@ -244,10 +313,12 @@ public class SmsAuthenticator implements Authenticator {
 	 * @param context AuthenticationFlowContext
 	 */
 	protected void resendCode(AuthenticationFlowContext context) {
+		UserModel user = context.getUser();
+
 		AuthenticationSessionModel authSession = context.getAuthenticationSession();
 		authSession.setAuthNote(RESEND_PARAM, "true");
 		// increment the "resendAttempt" auth note value
-		incrementedResendAttempt(authSession);
+		incrementedResendAttempt(user);
 		// display a message that a new OTP code has been sent
 		context.failureChallenge(AuthenticationFlowError.INVALID_CREDENTIALS,
 			context.form().setAttribute("realm", context.getRealm())

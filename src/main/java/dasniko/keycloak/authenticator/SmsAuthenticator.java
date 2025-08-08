@@ -13,8 +13,8 @@ import org.keycloak.models.*;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.theme.Theme;
 
-import java.sql.Timestamp;
-import java.util.Date;
+import java.time.Instant;
+import java.time.ZonedDateTime;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.regex.Matcher;
@@ -46,8 +46,6 @@ public class SmsAuthenticator implements Authenticator {
 		UserModel user = context.getUser();
 		// check if resend attempt attributes should be reset
 		handleResendAttemptStatus(user, config);
-
-		String lastResendAttempt = user.getFirstAttribute(RESEND_ATTEMPT_LAST_TIMESTAMP);
 
 		int maxResendAttempts = Integer.parseInt(config.getConfig().get(RESEND_CODE_MAX_ATTEMPTS));
 		String mobileNumber = user.getFirstAttribute(MOBILE_NUMBER_FIELD);
@@ -104,7 +102,7 @@ public class SmsAuthenticator implements Authenticator {
 				String code = getSecretCode(config);
 
 				authSession.setAuthNote(CODE, code);
-				authSession.setAuthNote(CODE_TTL, Long.toString(System.currentTimeMillis() + (ttlInSeconds * TO_MILLISECONDS)));
+				authSession.setAuthNote(CODE_TTL, Long.toString(getCurrentInstantInMillis() + (ttlInSeconds * TO_MILLISECONDS)));
 
 				String smsAuthText = theme.getMessages(locale).getProperty("authCodeText");
 				String smsText = String.format(smsAuthText, code);
@@ -218,7 +216,7 @@ public class SmsAuthenticator implements Authenticator {
 		boolean isValid = enteredCodeIsValid(context);
 		if (isValid) {
 			// ttl is still valid
-			if (Long.parseLong(ttl) < System.currentTimeMillis()) {
+			if (Long.parseLong(ttl) < getCurrentInstantInMillis()) {
 				// expired
 				context.failureChallenge(AuthenticationFlowError.EXPIRED_CODE,
 					context.form().setError("authCodeExpired").createErrorPage(Response.Status.BAD_REQUEST));
@@ -279,10 +277,9 @@ public class SmsAuthenticator implements Authenticator {
 	private void handleResendAttemptStatus(UserModel user, AuthenticatorConfigModel config) {
 		String timestampAttr = user.getFirstAttribute(RESEND_ATTEMPT_LAST_TIMESTAMP);
 		if (!isNull(timestampAttr)) {
-			Timestamp lastResendTimestamp = Timestamp.valueOf(timestampAttr);
-			long currentTime = System.currentTimeMillis();
-			long diff = currentTime - lastResendTimestamp.getTime();
+			ZonedDateTime parsedTimestampAttr = ZonedDateTime.parse(timestampAttr);
 			int resetPeriod = getResendAttemptPeriod(config);
+			long diff = getCurrentInstantInMillis() - parsedTimestampAttr.toInstant().toEpochMilli();
 			if (diff > resetPeriod) {
 				resetResendAttemptAttributes(user);
 			}
@@ -292,7 +289,7 @@ public class SmsAuthenticator implements Authenticator {
 	/**
 	 * Sets the resend attempt attributes with new values:
 	 * <ul>
-	 *     <li>RESEND_ATTEMPT_LAST_TIMESTAMP is set to the current timestamp</li>
+	 *     <li>RESEND_ATTEMPT_LAST_TIMESTAMP is set to the current instant</li>
 	 *     <li>RESEND_ATTEMPT_COUNT is incremented by 1</li>
 	 * </ul>
 	 *
@@ -301,9 +298,8 @@ public class SmsAuthenticator implements Authenticator {
 	private void incrementedResendAttempt(UserModel user) {
 		String resendAttempt = user.getFirstAttribute(RESEND_ATTEMPT_COUNT);
 		int incremented = isNull(resendAttempt) ? 1 : Integer.parseInt(resendAttempt) + 1;
-		Timestamp currentTimestamp = new Timestamp(new Date().getTime());
-		// setting as a Timestamp for readability in the Admin UI
-		user.setSingleAttribute(RESEND_ATTEMPT_LAST_TIMESTAMP, currentTimestamp.toString());
+		Instant now = Instant.now();
+		user.setSingleAttribute(RESEND_ATTEMPT_LAST_TIMESTAMP, now.toString());
 		user.setSingleAttribute(RESEND_ATTEMPT_COUNT, Integer.toString(incremented));
 	}
 
@@ -395,4 +391,7 @@ public class SmsAuthenticator implements Authenticator {
 		return validPhoneNumber.matches();
 	}
 
+	private long getCurrentInstantInMillis() {
+		return Instant.now().toEpochMilli();
+	}
 }

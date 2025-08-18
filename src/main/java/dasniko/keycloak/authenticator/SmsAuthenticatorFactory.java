@@ -61,10 +61,12 @@ public class SmsAuthenticatorFactory implements AuthenticatorFactory {
 	@Override
 	public List<ProviderConfigProperty> getConfigProperties() {
 		return List.of(
-			new ProviderConfigProperty(CODE_LENGTH, "Code length", "The number of digits of the generated code.", ProviderConfigProperty.STRING_TYPE, 6),
+			new ProviderConfigProperty(CODE_LENGTH, "Code length", "The number of digits of the generated code.", ProviderConfigProperty.STRING_TYPE, "6"),
 			new ProviderConfigProperty(CODE_TTL, "Time-to-live", "The time to live in seconds for the code to be valid.", ProviderConfigProperty.STRING_TYPE, "300"),
 			new ProviderConfigProperty(SIMULATION_MODE, "Simulation mode", "In simulation mode, the SMS won't be sent, but printed to the server logs", ProviderConfigProperty.BOOLEAN_TYPE, true),
-			new ProviderConfigProperty(ORIGINATION_NUMBER, "Origination number", "The origination phone number configured for the SMS Provider, this is displayed as the message sender on the receiving device", ProviderConfigProperty.STRING_TYPE, "")
+			new ProviderConfigProperty(ORIGINATION_NUMBER, "Origination number", "The origination phone number configured for the SMS Provider, this is displayed as the message sender on the receiving device", ProviderConfigProperty.STRING_TYPE, ""),
+			new ProviderConfigProperty(RESEND_CODE_MAX_ATTEMPTS, "Resend code max attempts", "The maximum times a user is allowed to request a new OTP code before the account is disabled.", ProviderConfigProperty.STRING_TYPE, "10"),
+			new ProviderConfigProperty(RESEND_CODE_RESET_PERIOD, "Resend attempts reset period", "The waiting period, in seconds, between the most recent resend attempt and resetting the resend attempt count to 0. The default is 86400 (24 hours).", ProviderConfigProperty.STRING_TYPE, "86400") // 24 hours
 		);
 	}
 
